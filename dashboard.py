@@ -41,8 +41,22 @@ def build_dbt_database():
             dbt = dbtRunner()
             
             # Define commands explicitly pointing project dir to CWD ('.')
+            deps_args = ["deps", "--project-dir", "."]
             seed_args = ["seed", "--project-dir", "."]
             run_args = ["run", "--project-dir", "."]
+
+            # --- Run dbt deps first --- 
+            st.info(f"Running dbt deps from {os.getcwd()} (project dir: '.')...") 
+            deps_res: dbtRunnerResult = dbt.invoke(deps_args)
+            if not deps_res.success:
+                 st.error("dbt deps failed. Cannot continue build.")
+                 if deps_res.exception:
+                     st.error(f"dbt deps exception: {deps_res.exception}")
+                 if deps_res.result:
+                     st.error(f"dbt deps result: {deps_res.result}")
+                 return # Stop if deps fail
+            st.success("dbt deps completed successfully.")
+            # --- End dbt deps --- 
             
             st.info(f"Running dbt seed from {os.getcwd()} (project dir: '.')...") 
             seed_res: dbtRunnerResult = dbt.invoke(seed_args)
