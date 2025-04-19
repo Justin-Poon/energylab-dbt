@@ -43,10 +43,19 @@ def build_dbt_database():
                 # Consider showing run output if needed (run_res.result)
             else:
                 st.error("dbt run failed. Cannot load data.")
-                # Optionally show run_res.exception or run_res.result for debugging
+                # Print specific error details for dbt run failure
+                if run_res.exception:
+                    st.error(f"dbt run exception: {run_res.exception}")
+                if run_res.result:
+                    st.error(f"dbt run result: {run_res.result}")
         else:
             st.error("dbt seed failed. Cannot load data.")
-            # Optionally show seed_res.exception or seed_res.result for debugging
+            # Print specific error details for dbt seed failure
+            if seed_res.exception:
+                st.error(f"dbt seed exception: {seed_res.exception}")
+            if seed_res.result:
+                # This might contain logs or structured results depending on the command
+                st.error(f"dbt seed result: {seed_res.result}")
     else:
         st.info(f"Found existing database: {DB_PATH}")
 
