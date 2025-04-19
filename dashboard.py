@@ -1,6 +1,8 @@
 import streamlit as st
 import duckdb
 import pandas as pd
+import subprocess # Import subprocess
+import os # Import os
 
 # --- Page Config (Must be the first Streamlit command!) ---
 st.set_page_config(layout="wide")
@@ -8,6 +10,64 @@ st.set_page_config(layout="wide")
 
 # Database path (relative to project root)
 DB_PATH = 'energylab.duckdb'
+DBT_PROJECT_DIR = 'energylab' # Specify dbt project directory relative to script
+
+# --- Function to run dbt commands ---
+def run_dbt_command(command):
+    st.info(f"Running: {command}...")
+    try:
+        # Use shell=True for simplicity, consider security implications for complex commands
+        result = subprocess.run(command, shell=True, check=True, capture_output=True, text=True,
+                                # Run dbt commands from the directory containing dashboard.py
+                                # DBT_PROJECT_DIR will point relative to this
+                                cwd=os.path.dirname(__file__) 
+                                )
+        # Display stdout in an expander
+        with st.expander(f"Output for: {command}", expanded=False):
+             st.code(result.stdout, language=None) # Display raw output
+        if result.stderr:
+             st.text("Error output (stderr):")
+             st.code(result.stderr, language=None) # Show stderr output as well
+        st.success(f"'{command}' completed successfully.")
+        return True
+    except subprocess.CalledProcessError as e:
+        st.error(f"Error running command: {command}")
+        st.error(f"Return code: {e.returncode}")
+        # Display output/error in expanders even on failure
+        with st.expander(f"Failed Output for: {command}", expanded=True):
+            st.text("Standard Output:")
+            st.code(e.stdout or "(No stdout)", language=None)
+            st.text("Error Output (stderr):")
+            st.code(e.stderr or "(No stderr)", language=None)
+        return False
+    except Exception as e:
+        st.error(f"An unexpected error occurred while running dbt: {e}")
+        return False
+
+# --- Run dbt if database doesn't exist ---
+# Cache this step to ensure it only runs once per session if DB is missing initially
+@st.cache_resource
+def build_dbt_database():
+    if not os.path.exists(DB_PATH):
+        st.warning(f"{DB_PATH} not found. Running dbt commands to build it...")
+        # Use --project-dir to tell dbt where the project root is
+        seed_command = f"dbt seed --project-dir {DBT_PROJECT_DIR}"
+        run_command = f"dbt run --project-dir {DBT_PROJECT_DIR}"
+        
+        seed_success = run_dbt_command(seed_command)
+        if seed_success:
+            run_success = run_dbt_command(run_command)
+            if run_success:
+                st.success("dbt build process completed. Database should be ready.")
+            else:
+                st.error("dbt run failed. Cannot load data.")
+        else:
+            st.error("dbt seed failed. Cannot load data.")
+    else:
+        st.info(f"Found existing database: {DB_PATH}")
+
+# --- Build dbt database if necessary ---
+build_dbt_database()
 
 # Function to load monthly metrics data from DuckDB
 @st.cache_data # Cache the data to avoid reloading on every interaction
