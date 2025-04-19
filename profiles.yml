@@ -3,7 +3,8 @@ energylab:
   outputs:
     dev:
       type: duckdb
-      path: /tmp/energylab.duckdb # Try an absolute path in /tmp
+      # path: /tmp/energylab.duckdb # Old path
+      path: energylab.duckdb # Path relative to dbt_project.yml (root)
       # Optional: Add extensions or other DuckDB settings here
       # extensions:
       #   - httpfs

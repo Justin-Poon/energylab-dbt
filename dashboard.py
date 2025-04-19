@@ -13,12 +13,11 @@ st.set_page_config(layout="wide")
 # ---------------------------------------------------------
 
 # Database path (relative to project root)
-# DB_PATH = 'energylab.duckdb' # Old path
-DB_PATH = '/tmp/energylab.duckdb' # Use the same absolute path as profiles.yml
+DB_PATH = 'energylab.duckdb' # Relative path in repo root
 DB_WAL_PATH = DB_PATH + ".wal" # WAL file path
 # DBT_PROJECT_DIR = 'energylab' # No longer needed
 
-# --- Force Clean Slate on Start ---
+# --- Force Clean Slate on Start (Optional but safer) ---
 st.info(f"Checking for and deleting existing DB files: {DB_PATH}*")
 try:
     if os.path.exists(DB_PATH):
@@ -32,10 +31,10 @@ except OSError as e:
 # --- End Clean Slate ---
 
 # --- dbt Build Logic --- 
-@st.cache_resource # Build should only run once per session now
+@st.cache_resource # Re-enable cache
 def build_dbt_database():
     db_abs_path = os.path.abspath(DB_PATH)
-    st.warning(f"Running dbt commands to build database at {db_abs_path}...") # Removed initial check msg
+    st.warning(f"Running dbt commands to build database at {db_abs_path}...") 
     build_success = False
     try:
         # Store/clear env vars
@@ -45,29 +44,34 @@ def build_dbt_database():
             st.info("Cleared existing DBT environment variables.")
 
         dbt = dbtRunner()
-        # Add --debug flag for verbose logging
         deps_args = ["deps", "--project-dir", ".", "--debug"]
         seed_args = ["seed", "--project-dir", ".", "--debug"]
         run_args = ["run", "--project-dir", ".", "--debug"]
 
+        st.info(f"DB Exists before deps: {os.path.exists(db_abs_path)}")
         st.info(f"Running dbt deps...") 
         deps_res: dbtRunnerResult = dbt.invoke(deps_args)
+        st.info(f"DB Exists after deps: {os.path.exists(db_abs_path)}")
         if not deps_res.success:
             st.error("dbt deps failed.")
             if deps_res.exception: st.error(f"dbt deps exception: {deps_res.exception}")
             if deps_res.result: st.error(f"dbt deps result: {deps_res.result}")
         else:
             st.success("dbt deps completed.")
+            st.info(f"DB Exists before seed: {os.path.exists(db_abs_path)}")
             st.info(f"Running dbt seed...") 
             seed_res: dbtRunnerResult = dbt.invoke(seed_args)
+            st.info(f"DB Exists after seed: {os.path.exists(db_abs_path)}")
             if not seed_res.success:
                 st.error("dbt seed failed.")
                 if seed_res.exception: st.error(f"dbt seed exception: {seed_res.exception}")
                 if seed_res.result: st.error(f"dbt seed result: {seed_res.result}") 
             else:
                 st.success("dbt seed completed.")
+                st.info(f"DB Exists before run: {os.path.exists(db_abs_path)}")
                 st.info(f"Running dbt run...") 
                 run_res: dbtRunnerResult = dbt.invoke(run_args)
+                st.info(f"DB Exists after run: {os.path.exists(db_abs_path)}")
                 if not run_res.success:
                     st.error("dbt run failed.")
                     if run_res.exception: st.error(f"dbt run exception: {run_res.exception}")
@@ -97,7 +101,7 @@ def build_dbt_database():
     return build_success # Return status 
 
 # --- Database Connection --- 
-@st.cache_resource # Cache the connection separately
+@st.cache_resource # Re-enable cache
 def get_db_connection(build_outcome):
     # Only attempt connection if build reported success
     if not build_outcome:
