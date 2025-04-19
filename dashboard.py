@@ -114,9 +114,12 @@ def get_db_connection(build_outcome):
         st.error(f"Database file not found at {db_connect_path} when trying to connect (unexpected)." ) 
         return None
     try:
-        # Add short delay before connecting read-only
-        time.sleep(0.5) 
-        connection = duckdb.connect(db_connect_path, read_only=True)
+        # Increase delay significantly
+        sleep_duration = 3 
+        st.info(f"Waiting {sleep_duration} seconds before connecting...")
+        time.sleep(sleep_duration) 
+        # Try connecting without read_only=True for diagnostics
+        connection = duckdb.connect(db_connect_path) #, read_only=True)
         st.success("Database connection established.")
         return connection
     except Exception as e:
