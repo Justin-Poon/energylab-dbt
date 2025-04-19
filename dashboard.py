@@ -20,7 +20,7 @@ DB_PATH = 'energylab.duckdb'
 
 # --- Run dbt if database doesn't exist ---
 # Cache this step to ensure it only runs once per session if DB is missing initially
-@st.cache_resource
+# @st.cache_resource # <-- Temporarily commented out for debugging
 def build_dbt_database():
     # Use absolute path for check
     db_abs_path = os.path.abspath(DB_PATH)
@@ -67,6 +67,9 @@ def build_dbt_database():
                 run_res: dbtRunnerResult = dbt.invoke(run_args)
                 if run_res.success:
                     st.success("dbt run completed successfully. Database should be ready.")
+                    # --- Add check immediately after successful run ---
+                    st.info(f"Checking existence immediately after build: {os.path.exists(db_abs_path)}") 
+                    # --- End check ---
                 else:
                     st.error("dbt run failed. Cannot load data.")
                     if run_res.exception:
