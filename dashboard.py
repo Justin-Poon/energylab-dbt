@@ -16,19 +16,17 @@ st.set_page_config(layout="wide")
 DB_PATH = '/tmp/energylab.duckdb' # Use the same absolute path as profiles.yml
 # DBT_PROJECT_DIR = 'energylab' # No longer needed
 
-# --- Combined Build & Connection Logic --- 
-@st.cache_resource # Cache the connection for the session
-def get_or_build_db_connection():
+# --- dbt Build Logic --- 
+@st.cache_resource # Cache resource so build only runs once per session if needed
+def build_dbt_database():
     db_abs_path = os.path.abspath(DB_PATH)
     st.info(f"Checking for database at: {db_abs_path}")
-
-    db_exists = os.path.exists(db_abs_path)
     
-    if not db_exists:
+    if not os.path.exists(db_abs_path):
         st.warning(f"Database not found. Running dbt commands via Python API to build it...")
-        build_success = False # Flag to track if build succeeded
+        build_success = False
         try:
-            # Store/clear env vars if needed (keeping previous logic)
+            # Store/clear env vars
             old_project_dir = os.environ.pop('DBT_PROJECT_DIR', None)
             old_profiles_dir = os.environ.pop('DBT_PROFILES_DIR', None)
             if old_project_dir or old_profiles_dir:
@@ -78,33 +76,36 @@ def get_or_build_db_connection():
                  os.environ['DBT_PROJECT_DIR'] = old_project_dir
              if old_profiles_dir:
                  os.environ['DBT_PROFILES_DIR'] = old_profiles_dir
-
-        # Only proceed to connect if build was successful
-        if not build_success:
-             st.error("Database build failed. Cannot establish connection.")
-             return None
         
-        # Check existence *after* build attempt
-        db_exists = os.path.exists(db_abs_path)
-        st.info(f"Database exists after build attempt: {db_exists}")
-        if not db_exists:
-            st.error("Database file still does not exist after dbt reported success.")
-            return None
-            
-    # --- Attempt Connection --- 
-    if db_exists:
-        st.info(f"Attempting to establish DB connection to: {db_abs_path}")
-        try:
-            connection = duckdb.connect(db_abs_path, read_only=True)
-            st.success("Database connection established.")
-            return connection
-        except Exception as e:
-            st.error(f"Failed to connect to database at {db_abs_path}: {e}")
-            return None
+        if build_success:
+             st.info("dbt build process finished.")
+             # Check existence after build attempt
+             if not os.path.exists(db_abs_path):
+                  st.error("Database file still does not exist after dbt reported success.")
+        else:
+             st.error("Database build failed. Cannot proceed.")
+             # Potentially stop the app or return early if build is critical
+             # st.stop()
     else:
-         # Should not happen if build_success was True and check passed, but safeguard
-        st.error("Database does not exist, cannot connect.")
+        st.info(f"Found existing database: {db_abs_path}")
+    # This function no longer returns a connection
+
+# --- Database Connection --- 
+@st.cache_resource # Cache the connection separately
+def get_db_connection():
+    db_connect_path = os.path.abspath(DB_PATH)
+    st.info(f"Attempting to establish DB connection to: {db_connect_path}")
+    # Check if the file exists *before* trying to connect
+    if not os.path.exists(db_connect_path):
+        st.error(f"Database file not found at {db_connect_path} when trying to connect.")
         return None
+    try:
+        connection = duckdb.connect(db_connect_path, read_only=True)
+        st.success("Database connection established.")
+        return connection
+    except Exception as e:
+         st.error(f"Failed to connect to database at {db_connect_path}: {e}")
+         return None
 
 # Function to load monthly metrics data from DuckDB
 # @st.cache_data # <-- Temporarily commented out for debugging
@@ -134,8 +135,11 @@ def load_invoice_data(con):
         return pd.DataFrame()
 
 # --- Main App Logic --- 
-# Get the database connection (which includes build logic)
-con = get_or_build_db_connection()
+# Ensure DB is built if necessary (runs only if DB doesn't exist)
+build_dbt_database()
+
+# THEN, get the shared database connection
+con = get_db_connection()
 
 # Load the data using the connection
 df_metrics = load_monthly_metrics(con)
