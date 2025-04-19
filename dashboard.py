@@ -16,101 +16,95 @@ st.set_page_config(layout="wide")
 DB_PATH = '/tmp/energylab.duckdb' # Use the same absolute path as profiles.yml
 # DBT_PROJECT_DIR = 'energylab' # No longer needed
 
-# --- Function to run dbt commands using Python API ---
-# Removed run_dbt_command function
-
-# --- Run dbt if database doesn't exist ---
-# Cache this step to ensure it only runs once per session if DB is missing initially
-# @st.cache_resource # <-- Temporarily commented out for debugging
-def build_dbt_database():
-    # Use absolute path for check
+# --- Combined Build & Connection Logic --- 
+@st.cache_resource # Cache the connection for the session
+def get_or_build_db_connection():
     db_abs_path = os.path.abspath(DB_PATH)
+    st.info(f"Checking for database at: {db_abs_path}")
+
+    db_exists = os.path.exists(db_abs_path)
     
-    if not os.path.exists(db_abs_path):
-        st.warning(f"{db_abs_path} not found. Running dbt commands via Python API to build it...")
-        
-        # Simple execution from the root directory
+    if not db_exists:
+        st.warning(f"Database not found. Running dbt commands via Python API to build it...")
+        build_success = False # Flag to track if build succeeded
         try:
-            # --- Explicitly unset potential env vars (just in case) ---
+            # Store/clear env vars if needed (keeping previous logic)
             old_project_dir = os.environ.pop('DBT_PROJECT_DIR', None)
             old_profiles_dir = os.environ.pop('DBT_PROFILES_DIR', None)
             if old_project_dir or old_profiles_dir:
                 st.info("Cleared existing DBT environment variables.")
-            # --- End Unset ---
-            
-            # Initialize dbtRunner 
+
             dbt = dbtRunner()
-            
-            # Define commands explicitly pointing project dir to CWD ('.')
             deps_args = ["deps", "--project-dir", "."]
             seed_args = ["seed", "--project-dir", "."]
             run_args = ["run", "--project-dir", "."]
 
-            # --- Run dbt deps first --- 
-            st.info(f"Running dbt deps from {os.getcwd()} (project dir: '.')...") 
+            st.info(f"Running dbt deps...") 
             deps_res: dbtRunnerResult = dbt.invoke(deps_args)
             if not deps_res.success:
-                 st.error("dbt deps failed. Cannot continue build.")
+                 st.error("dbt deps failed.")
                  if deps_res.exception:
                      st.error(f"dbt deps exception: {deps_res.exception}")
                  if deps_res.result:
                      st.error(f"dbt deps result: {deps_res.result}")
-                 return # Stop if deps fail
-            st.success("dbt deps completed successfully.")
-            # --- End dbt deps --- 
-            
-            st.info(f"Running dbt seed from {os.getcwd()} (project dir: '.')...") 
-            seed_res: dbtRunnerResult = dbt.invoke(seed_args)
-            if seed_res.success:
-                st.success("dbt seed completed successfully.")
-                
-                st.info(f"Running dbt run from {os.getcwd()} (project dir: '.')...") 
-                run_res: dbtRunnerResult = dbt.invoke(run_args)
-                if run_res.success:
-                    st.success("dbt run completed successfully. Database should be ready.")
-                    # --- Add check immediately after successful run ---
-                    st.info(f"Checking existence immediately after build: {os.path.exists(db_abs_path)}") 
-                    # --- End check ---
-                else:
-                    st.error("dbt run failed. Cannot load data.")
-                    if run_res.exception:
-                        st.error(f"dbt run exception: {run_res.exception}")
-                    if run_res.result:
-                        st.error(f"dbt run result: {run_res.result}")
             else:
-                st.error("dbt seed failed. Cannot load data.")
-                if seed_res.exception:
-                    st.error(f"dbt seed exception: {seed_res.exception}")
-                if seed_res.result:
-                    st.error(f"dbt seed result: {seed_res.result}") 
-                    
+                st.success("dbt deps completed.")
+                st.info(f"Running dbt seed...") 
+                seed_res: dbtRunnerResult = dbt.invoke(seed_args)
+                if not seed_res.success:
+                    st.error("dbt seed failed.")
+                    if seed_res.exception:
+                        st.error(f"dbt seed exception: {seed_res.exception}")
+                    if seed_res.result:
+                        st.error(f"dbt seed result: {seed_res.result}")
+                else:
+                    st.success("dbt seed completed.")
+                    st.info(f"Running dbt run...") 
+                    run_res: dbtRunnerResult = dbt.invoke(run_args)
+                    if not run_res.success:
+                        st.error("dbt run failed.")
+                        if run_res.exception:
+                            st.error(f"dbt run exception: {run_res.exception}")
+                        if run_res.result:
+                            st.error(f"dbt run result: {run_res.result}")
+                    else:
+                        st.success("dbt run completed.")
+                        build_success = True # Mark build as successful
         except Exception as e:
              st.error(f"An unexpected error occurred during dbt execution: {e}")
         finally:
-             # Restore env vars if they existed (optional, good practice)
+             # Restore env vars 
              if old_project_dir:
                  os.environ['DBT_PROJECT_DIR'] = old_project_dir
              if old_profiles_dir:
                  os.environ['DBT_PROFILES_DIR'] = old_profiles_dir
-       
+
+        # Only proceed to connect if build was successful
+        if not build_success:
+             st.error("Database build failed. Cannot establish connection.")
+             return None
+        
+        # Check existence *after* build attempt
+        db_exists = os.path.exists(db_abs_path)
+        st.info(f"Database exists after build attempt: {db_exists}")
+        if not db_exists:
+            st.error("Database file still does not exist after dbt reported success.")
+            return None
+            
+    # --- Attempt Connection --- 
+    if db_exists:
+        st.info(f"Attempting to establish DB connection to: {db_abs_path}")
+        try:
+            connection = duckdb.connect(db_abs_path, read_only=True)
+            st.success("Database connection established.")
+            return connection
+        except Exception as e:
+            st.error(f"Failed to connect to database at {db_abs_path}: {e}")
+            return None
     else:
-        st.info(f"Found existing database: {db_abs_path}")
-
-# --- Build dbt database if necessary ---
-build_dbt_database()
-
-# --- Database Connection --- 
-@st.cache_resource # Cache the connection for the session
-def get_db_connection():
-    db_connect_path = os.path.abspath(DB_PATH)
-    st.info(f"Establishing DB connection to: {db_connect_path}")
-    try:
-        # Connect read-only after potential build
-        connection = duckdb.connect(db_connect_path, read_only=True)
-        return connection
-    except Exception as e:
-         st.error(f"Failed to connect to database at {db_connect_path}: {e}")
-         return None # Return None if connection fails
+         # Should not happen if build_success was True and check passed, but safeguard
+        st.error("Database does not exist, cannot connect.")
+        return None
 
 # Function to load monthly metrics data from DuckDB
 # @st.cache_data # <-- Temporarily commented out for debugging
@@ -139,10 +133,13 @@ def load_invoice_data(con):
         st.error(f"Error loading invoice data: {e}")
         return pd.DataFrame()
 
-# Load the data
-con = get_db_connection()
+# --- Main App Logic --- 
+# Get the database connection (which includes build logic)
+con = get_or_build_db_connection()
+
+# Load the data using the connection
 df_metrics = load_monthly_metrics(con)
-df_invoices = load_invoice_data(con) # Load invoice data
+df_invoices = load_invoice_data(con) 
 
 st.title("Billing Dashboard") # Updated title slightly
 
