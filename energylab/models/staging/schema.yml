@@ -1,0 +1,59 @@
+version: 2
+
+sources:
+  - name: seed
+    schema: seed
+    tables:
+      - name: sample_billing_invoices
+      - name: sample_payments
+
+models:
+  - name: stg_invoices
+    description: "Cleaned invoice data from the billing seed file. Includes generated invoice ID and renamed columns."
+    columns:
+      - name: invoice_id
+        description: "Generated unique ID for the invoice (based on row number)."
+        tests: [not_null, unique]
+      - name: customer_id
+        description: "ID of the customer being billed (from Customer_Num)."
+        tests: [not_null]
+      - name: billing_start_date
+        description: "Start date of the billing period."
+        tests: [not_null]
+      - name: billing_end_date
+        description: "End date of the billing period."
+        tests: [not_null]
+      - name: prev_meter_reading
+        description: "Meter reading at the start of the billing period."
+        tests: [not_null]
+      - name: curr_meter_reading
+        description: "Meter reading at the end of the billing period."
+        tests: [not_null]
+      - name: usage_kwh
+        description: "Energy usage in kWh during the billing period."
+        tests: [not_null]
+      - name: amount
+        description: "Total amount charged for the billing period (from Total Charge)."
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+
+  - name: stg_payments
+    description: "Cleaned payments data"
+    columns:
+      - name: customer_id
+        description: "ID of the customer who made the payment."
+        tests: [not_null]
+      - name: invoice_id
+        description: "ID of the invoice the payment is applied to."
+        tests: [not_null]
+      - name: payment_date
+        description: "The date the payment was received."
+        tests: [not_null]
+      - name: amount_paid
+        description: "The amount paid in this transaction."
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0

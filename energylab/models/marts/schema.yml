@@ -1,0 +1,60 @@
+version: 2
+
+models:
+  - name: fct_billing_metrics
+    description: "Monthly aggregated billing metrics."
+    columns:
+      - name: billing_month
+        description: "The year and month of the billing period (YYYY-MM)."
+        tests:
+          - not_null
+          - unique
+
+      - name: count_invoices
+        description: "Total number of invoices ending in the month."
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+
+      - name: total_invoiced_amount
+        description: "Sum of amounts for all invoices ending in the month."
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+
+      - name: total_paid_amount
+        description: "Sum of amounts paid towards invoices ending in the month."
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+
+      - name: total_outstanding_amount
+        description: "Sum of outstanding amounts for invoices ending in the month."
+        tests:
+          - not_null
+          # Outstanding can technically be negative if overpaid, so no min_value test here.
+
+      - name: count_paid_invoices
+        description: "Number of invoices ending in the month that are fully paid."
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+
+      - name: collection_rate
+        description: "Ratio of total amount paid to total amount invoiced for the month."
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 1 # Collection rate cannot exceed 1 (unless overpayments are handled differently)
+
+      - name: avg_days_to_pay
+        description: "Average number of days taken to fully pay invoices that were paid within the month."
+        tests:
+          # This column can be null if no invoices were fully paid
+          - dbt_utils.accepted_range:
+              min_value: 0 # Days to pay cannot be negative 

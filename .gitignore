@@ -1,0 +1,30 @@
+# Project planning files
+/tasks.md
+
+# Project Documentation
+/project-summary.md 
+
+# --- Standard Ignores Added Below ---
+
+# Python virtual environment
+.venv/
+venv/
+**/__pycache__/
+*.py[cod]
+
+# dbt artifacts
+target/
+dbt_packages/
+logs/
+
+# DuckDB
+*.duckdb
+*.duckdb.wal
+
+# IDE / Editor specific
+.vscode/
+.idea/
+
+# OS specific
+.DS_Store
+Thumbs.db 

@@ -1,0 +1,35 @@
+# Name your project! Project names should contain only lowercase characters
+# and underscores. A good package name should reflect your organization's
+# name or the intended use of these models
+name: 'energylab'
+version: '1.0.0'
+config-version: 2
+
+# This setting configures which "profile" dbt uses for this project.
+profile: 'energylab' # This should match the profile name in your profiles.yml
+
+# These configurations specify where dbt should look for different types of files.
+# The `model-paths` config, for example, states that models in this project can be
+# found in the "models/" directory. You probably won't need to change these!
+model-paths: ["energylab/models"]
+analysis-paths: ["energylab/analyses"]
+test-paths: ["energylab/tests"]
+seed-paths: ["energylab/seeds"]
+macro-paths: ["energylab/macros"]
+snapshot-paths: ["energylab/snapshots"]
+
+seeds:
+  energylab: # This should match your project name
+    # pass # Add pass if energylab block becomes empty
+    sample_payments:
+      +column_types:
+        customer_id: text
+        invoice_id: text
+        payment_date: date
+        amount_paid: numeric
+      +delimiter: ','
+      +header: true
+      +encoding: 'utf8'
+      # No dateformat needed for YYYY-MM-DD
+
+# You can define configurations for models in the `

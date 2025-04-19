@@ -1,0 +1,39 @@
+name: DBT Build on PR
+
+on:
+  pull_request:
+    branches:
+      - main # Or your default branch
+
+jobs:
+  dbt_build:
+    name: Run dbt build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12' # Match your local environment if possible
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install dbt-duckdb pandas # Install dbt adapter and pandas
+          # Add other dependencies if needed
+          
+      - name: Install dbt packages
+        run: dbt deps # Install packages from packages.yml (dbt-utils)
+
+      - name: Create dummy profiles.yml for CI
+        run: |
+          echo "energylab:\n  target: ci\n  outputs:\n    ci:\n      type: duckdb\n      path: ':memory:' # Use in-memory database for CI\n      threads: 4 # Adjust threads as needed for runner\n" > profiles.yml
+          echo "Created profiles.yml:"
+          cat profiles.yml
+          export DBT_PROFILES_DIR=.
+          
+      - name: Run dbt build
+        run: dbt build --profiles-dir . # Point to the generated profile 
