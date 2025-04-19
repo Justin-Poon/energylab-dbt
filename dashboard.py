@@ -26,17 +26,14 @@ def build_dbt_database():
         st.warning(f"{DB_PATH} not found. Running dbt commands via Python API to build it...")
         dbt = dbtRunner()
         
-        # Define commands as lists of arguments for invoke
-        # Explicitly point to the profiles dir within the project
+        # Define commands - just need --project-dir now
         seed_args = [
             "seed", 
-            "--project-dir", DBT_PROJECT_DIR, 
-            "--profiles-dir", DBT_PROJECT_DIR # Tell dbt where profiles.yml is
+            "--project-dir", DBT_PROJECT_DIR
         ]
         run_args = [
             "run", 
-            "--project-dir", DBT_PROJECT_DIR, 
-            "--profiles-dir", DBT_PROJECT_DIR # Tell dbt where profiles.yml is
+            "--project-dir", DBT_PROJECT_DIR
         ]
         
         st.info(f"Running dbt seed...")

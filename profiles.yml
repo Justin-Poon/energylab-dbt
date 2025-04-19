@@ -3,7 +3,7 @@ energylab:
   outputs:
     dev:
       type: duckdb
-      path: ../energylab.duckdb # Path relative to this profiles.yml file
+      path: energylab.duckdb # Path relative to dbt_project.yml (which is inside energylab dir)
       # Optional: Add extensions or other DuckDB settings here
       # extensions:
       #   - httpfs
