@@ -22,7 +22,9 @@ def build_dbt_database():
     db_abs_path = os.path.abspath(DB_PATH)
     st.info(f"Checking for database at: {db_abs_path}")
     
-    if not os.path.exists(db_abs_path):
+    db_exists_initially = os.path.exists(db_abs_path)
+    
+    if not db_exists_initially:
         st.warning(f"Database not found. Running dbt commands via Python API to build it...")
         build_success = False
         try:
@@ -78,10 +80,12 @@ def build_dbt_database():
                  os.environ['DBT_PROFILES_DIR'] = old_profiles_dir
         
         if build_success:
-             st.info("dbt build process finished.")
+             st.info("dbt build process finished. Triggering app rerun.")
              # Check existence after build attempt
-             if not os.path.exists(db_abs_path):
-                  st.error("Database file still does not exist after dbt reported success.")
+             if os.path.exists(db_abs_path):
+                  st.rerun() # Force Streamlit to rerun the script
+             else:
+                  st.error("Database file still does not exist after dbt reported success. Cannot rerun.")
         else:
              st.error("Database build failed. Cannot proceed.")
              # Potentially stop the app or return early if build is critical
