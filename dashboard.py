@@ -31,7 +31,7 @@ except OSError as e:
 # --- End Clean Slate ---
 
 # --- dbt Build Logic --- 
-@st.cache_resource # Re-enable cache
+# @st.cache_resource # REMOVED cache
 def build_dbt_database():
     db_abs_path = os.path.abspath(DB_PATH)
     st.warning(f"Running dbt commands to build database at {db_abs_path}...") 
