@@ -45,9 +45,10 @@ def build_dbt_database():
             st.info("Cleared existing DBT environment variables.")
 
         dbt = dbtRunner()
-        deps_args = ["deps", "--project-dir", "."]
-        seed_args = ["seed", "--project-dir", "."]
-        run_args = ["run", "--project-dir", "."]
+        # Add --debug flag for verbose logging
+        deps_args = ["deps", "--project-dir", ".", "--debug"]
+        seed_args = ["seed", "--project-dir", ".", "--debug"]
+        run_args = ["run", "--project-dir", ".", "--debug"]
 
         st.info(f"Running dbt deps...") 
         deps_res: dbtRunnerResult = dbt.invoke(deps_args)
