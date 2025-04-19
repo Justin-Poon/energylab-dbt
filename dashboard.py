@@ -38,7 +38,7 @@ def get_db_connection():
 def load_monthly_metrics(con):
     if con is None: return pd.DataFrame() # Handle failed connection
     try:
-        st.info(f"Loading monthly metrics using existing connection...")
+        # st.info(f"Loading monthly metrics using existing connection...") # Removed info
         df = con.execute("SELECT * FROM main.fct_billing_metrics ORDER BY billing_month").df()
         # con.close() # Remove close - connection managed by Streamlit cache
         df['billing_month'] = pd.to_datetime(df['billing_month'] + '-01')
@@ -52,7 +52,7 @@ def load_monthly_metrics(con):
 def load_invoice_data(con):
     if con is None: return pd.DataFrame() # Handle failed connection
     try:
-        st.info(f"Loading invoice data using existing connection...")
+        # st.info(f"Loading invoice data using existing connection...") # Removed info
         df = con.execute("SELECT * FROM main.fct_invoices ORDER BY customer_id, invoice_id").df()
         # con.close() # Remove close - connection managed by Streamlit cache
         return df
