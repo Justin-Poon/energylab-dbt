@@ -18,8 +18,8 @@ dbt_packages/
 logs/
 
 # DuckDB
-*.duckdb
-*.duckdb.wal
+# *.duckdb
+# *.duckdb.wal
 
 # IDE / Editor specific
 .vscode/

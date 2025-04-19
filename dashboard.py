@@ -5,8 +5,8 @@ import pandas as pd
 import os
 # import sys # No longer needed
 # import shlex # No longer needed
-from dbt.cli.main import dbtRunner, dbtRunnerResult # Import dbtRunner
-import time # Import time for potential sleep
+# from dbt.cli.main import dbtRunner, dbtRunnerResult # No longer needed dbt imports
+# import time # No longer needed
 
 # --- Page Config (Must be the first Streamlit command!) ---
 st.set_page_config(layout="wide")
@@ -14,112 +14,22 @@ st.set_page_config(layout="wide")
 
 # Database path (relative to project root)
 DB_PATH = 'energylab.duckdb' # Relative path in repo root
-DB_WAL_PATH = DB_PATH + ".wal" # WAL file path
-# DBT_PROJECT_DIR = 'energylab' # No longer needed
+# DB_WAL_PATH = DB_PATH + ".wal" # No longer needed for read-only
 
-# --- Force Clean Slate on Start (Optional but safer) ---
-st.info(f"Checking for and deleting existing DB files: {DB_PATH}*")
-try:
-    if os.path.exists(DB_PATH):
-        os.remove(DB_PATH)
-        st.info(f"Deleted {DB_PATH}") # Use info level for routine deletion
-    if os.path.exists(DB_WAL_PATH):
-        os.remove(DB_WAL_PATH)
-        st.info(f"Deleted {DB_WAL_PATH}")
-except OSError as e:
-    st.error(f"Error deleting existing database files: {e}. App may fail.")
-# --- End Clean Slate ---
-
-# --- dbt Build Logic --- 
-# @st.cache_resource # REMOVED cache
-def build_dbt_database():
-    db_abs_path = os.path.abspath(DB_PATH)
-    st.warning(f"Running dbt commands to build database at {db_abs_path}...") 
-    build_success = False
-    try:
-        # Store/clear env vars
-        old_project_dir = os.environ.pop('DBT_PROJECT_DIR', None)
-        old_profiles_dir = os.environ.pop('DBT_PROFILES_DIR', None)
-        if old_project_dir or old_profiles_dir:
-            st.info("Cleared existing DBT environment variables.")
-
-        dbt = dbtRunner()
-        deps_args = ["deps", "--project-dir", ".", "--debug"]
-        seed_args = ["seed", "--project-dir", ".", "--debug"]
-        run_args = ["run", "--project-dir", ".", "--debug"]
-
-        st.info(f"DB Exists before deps: {os.path.exists(db_abs_path)}")
-        st.info(f"Running dbt deps...") 
-        deps_res: dbtRunnerResult = dbt.invoke(deps_args)
-        st.info(f"DB Exists after deps: {os.path.exists(db_abs_path)}")
-        if not deps_res.success:
-            st.error("dbt deps failed.")
-            if deps_res.exception: st.error(f"dbt deps exception: {deps_res.exception}")
-            if deps_res.result: st.error(f"dbt deps result: {deps_res.result}")
-        else:
-            st.success("dbt deps completed.")
-            st.info(f"DB Exists before seed: {os.path.exists(db_abs_path)}")
-            st.info(f"Running dbt seed...") 
-            seed_res: dbtRunnerResult = dbt.invoke(seed_args)
-            st.info(f"DB Exists after seed: {os.path.exists(db_abs_path)}")
-            if not seed_res.success:
-                st.error("dbt seed failed.")
-                if seed_res.exception: st.error(f"dbt seed exception: {seed_res.exception}")
-                if seed_res.result: st.error(f"dbt seed result: {seed_res.result}") 
-            else:
-                st.success("dbt seed completed.")
-                st.info(f"DB Exists before run: {os.path.exists(db_abs_path)}")
-                st.info(f"Running dbt run...") 
-                run_res: dbtRunnerResult = dbt.invoke(run_args)
-                st.info(f"DB Exists after run: {os.path.exists(db_abs_path)}")
-                if not run_res.success:
-                    st.error("dbt run failed.")
-                    if run_res.exception: st.error(f"dbt run exception: {run_res.exception}")
-                    if run_res.result: st.error(f"dbt run result: {run_res.result}")
-                else:
-                    st.success("dbt run completed.")
-                    build_success = True
-                    # Optional: Add a small delay 
-                    # time.sleep(1) 
-    except Exception as e:
-            st.error(f"An unexpected error occurred during dbt execution: {e}")
-    finally:
-            # Restore env vars 
-            if old_project_dir:
-                os.environ['DBT_PROJECT_DIR'] = old_project_dir
-            if old_profiles_dir:
-                os.environ['DBT_PROFILES_DIR'] = old_profiles_dir
-    
-    if build_success:
-            st.info("dbt build process finished.")
-            if not os.path.exists(db_abs_path):
-                st.error("Database file still does not exist after dbt reported success.")
-                build_success = False # Mark as failed if file missing
-    else:
-            st.error("Database build failed during execution.")
-            
-    return build_success # Return status 
+# --- Removed Clean Slate Logic ---
+# --- Removed dbt Build Logic ---
 
 # --- Database Connection --- 
-# @st.cache_resource # REMOVED cache
-def get_db_connection(build_outcome):
-    # Only attempt connection if build reported success
-    if not build_outcome:
-        st.warning("Skipping DB connection attempt because build failed.")
-        return None 
-        
+@st.cache_resource # Re-enable cache
+def get_db_connection(): # Removed build_outcome parameter
     db_connect_path = os.path.abspath(DB_PATH)
     st.info(f"Attempting to establish DB connection to: {db_connect_path}")
     if not os.path.exists(db_connect_path):
-        st.error(f"Database file not found at {db_connect_path} when trying to connect (unexpected)." ) 
+        st.error(f"Database file not found at {db_connect_path}. Please ensure 'energylab.duckdb' is in the repository and you've run 'dbt build' locally." ) 
         return None
     try:
-        # Increase delay significantly
-        sleep_duration = 3 
-        st.info(f"Waiting {sleep_duration} seconds before connecting...")
-        time.sleep(sleep_duration) 
-        # Try connecting without read_only=True for diagnostics
-        connection = duckdb.connect(db_connect_path) #, read_only=True)
+        # Connect read-only to pre-built database
+        connection = duckdb.connect(db_connect_path, read_only=True)
         st.success("Database connection established.")
         return connection
     except Exception as e:
@@ -133,7 +43,7 @@ def load_monthly_metrics(con):
     try:
         st.info(f"Loading monthly metrics using existing connection...")
         df = con.execute("SELECT * FROM main.fct_billing_metrics ORDER BY billing_month").df()
-        # con.close() # Remove close
+        # con.close() # Remove close - connection managed by Streamlit cache
         df['billing_month'] = pd.to_datetime(df['billing_month'] + '-01')
         return df
     except Exception as e:
@@ -147,18 +57,15 @@ def load_invoice_data(con):
     try:
         st.info(f"Loading invoice data using existing connection...")
         df = con.execute("SELECT * FROM main.fct_invoices ORDER BY customer_id, invoice_id").df()
-        # con.close() # Remove close
+        # con.close() # Remove close - connection managed by Streamlit cache
         return df
     except Exception as e:
         st.error(f"Error loading invoice data: {e}")
         return pd.DataFrame()
 
 # --- Main App Logic --- 
-# Force build DB on first run of session
-build_status = build_dbt_database()
-
-# Get the shared database connection (depends on build status)
-con = get_db_connection(build_status)
+# Get the shared database connection (no build step)
+con = get_db_connection()
 
 # Load the data using the connection
 df_metrics = load_monthly_metrics(con)
@@ -223,3 +130,5 @@ if not df_invoices.empty:
     }), use_container_width=True)
 else:
     st.warning("Could not load invoice data. Check logs.") 
+
+# --- Removed dbt build logic and related imports --- 
