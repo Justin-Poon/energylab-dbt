@@ -20,7 +20,7 @@ DB_PATH = 'energylab.duckdb' # Relative path in repo root
 # --- Removed dbt Build Logic ---
 
 # --- Database Connection --- 
-@st.cache_resource # Re-enable cache
+# @st.cache_resource # REMOVED cache again for testing
 def get_db_connection(): # Removed build_outcome parameter
     db_connect_path = os.path.abspath(DB_PATH)
     st.info(f"Attempting to establish DB connection to: {db_connect_path}")
