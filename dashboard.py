@@ -3,6 +3,7 @@ import duckdb
 import pandas as pd
 # import subprocess # No longer needed
 import os
+import gc # Import garbage collector
 # import sys # No longer needed
 # import shlex # No longer needed
 # from dbt.cli.main import dbtRunner, dbtRunnerResult # No longer needed dbt imports
@@ -28,6 +29,9 @@ def get_db_connection(): # Removed build_outcome parameter
         st.error(f"Database file not found at {db_connect_path}. Please ensure 'energylab.duckdb' is in the repository and you've run 'dbt build' locally." ) 
         return None
     try:
+        # Force garbage collection before connecting
+        st.info("Running garbage collection before connection attempt...")
+        gc.collect()
         # Connect read-only to pre-built database
         connection = duckdb.connect(db_connect_path, read_only=True)
         st.success("Database connection established.")
