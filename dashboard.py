@@ -99,45 +99,50 @@ def build_dbt_database():
 # --- Build dbt database if necessary ---
 build_dbt_database()
 
+# --- Database Connection --- 
+@st.cache_resource # Cache the connection for the session
+def get_db_connection():
+    db_connect_path = os.path.abspath(DB_PATH)
+    st.info(f"Establishing DB connection to: {db_connect_path}")
+    try:
+        # Connect read-only after potential build
+        connection = duckdb.connect(db_connect_path, read_only=True)
+        return connection
+    except Exception as e:
+         st.error(f"Failed to connect to database at {db_connect_path}: {e}")
+         return None # Return None if connection fails
+
 # Function to load monthly metrics data from DuckDB
 # @st.cache_data # <-- Temporarily commented out for debugging
-def load_monthly_metrics():
+def load_monthly_metrics(con):
+    if con is None: return pd.DataFrame() # Handle failed connection
     try:
-        # Use absolute path for connection
-        db_connect_path = os.path.abspath(DB_PATH) # Get current absolute path
-        st.info(f"load_monthly_metrics attempting to connect to: {db_connect_path}") # Log path
-        con = duckdb.connect(db_connect_path, read_only=True)
-        # Query for monthly metrics
+        st.info(f"Loading monthly metrics using existing connection...")
         df = con.execute("SELECT * FROM main.fct_billing_metrics ORDER BY billing_month").df()
-        con.close()
-        # Convert month string to datetime for charting
+        # con.close() # Remove close
         df['billing_month'] = pd.to_datetime(df['billing_month'] + '-01')
         return df
     except Exception as e:
-        st.error(f"Error loading monthly metrics from {DB_PATH}: {e}")
-        return pd.DataFrame() # Return empty DataFrame on error
+        st.error(f"Error loading monthly metrics: {e}")
+        return pd.DataFrame() 
 
 # Function to load individual invoice data from DuckDB
 # @st.cache_data # <-- Temporarily commented out for debugging
-def load_invoice_data():
+def load_invoice_data(con):
+    if con is None: return pd.DataFrame() # Handle failed connection
     try:
-        # Use absolute path for connection
-        db_connect_path = os.path.abspath(DB_PATH) # Get current absolute path
-        st.info(f"load_invoice_data attempting to connect to: {db_connect_path}") # Log path
-        con = duckdb.connect(db_connect_path, read_only=True)
-        # Query for individual invoice details
+        st.info(f"Loading invoice data using existing connection...")
         df = con.execute("SELECT * FROM main.fct_invoices ORDER BY customer_id, invoice_id").df()
-        con.close()
-        # Convert dates if needed (assuming they are already date/datetime)
-        # Example: df['billing_start_date'] = pd.to_datetime(df['billing_start_date'])
+        # con.close() # Remove close
         return df
     except Exception as e:
-        st.error(f"Error loading invoice data from {DB_PATH}: {e}")
+        st.error(f"Error loading invoice data: {e}")
         return pd.DataFrame()
 
 # Load the data
-df_metrics = load_monthly_metrics()
-df_invoices = load_invoice_data() # Load invoice data
+con = get_db_connection()
+df_metrics = load_monthly_metrics(con)
+df_invoices = load_invoice_data(con) # Load invoice data
 
 st.title("Billing Dashboard") # Updated title slightly
 
@@ -180,7 +185,7 @@ if not df_metrics.empty:
         'avg_days_to_pay': '{:.1f}'
     }), use_container_width=True)
 else:
-    st.warning("Could not load monthly metrics data. Did you run `dbt build`?")
+    st.warning("Could not load monthly metrics data. Check logs.")
 
 # --- Customer Invoice Detail Section ---
 st.divider()
@@ -197,4 +202,4 @@ if not df_invoices.empty:
         # 'billing_end_date': '{:%Y-%m-%d}'
     }), use_container_width=True)
 else:
-    st.warning("Could not load invoice data. Did you run `dbt build`?") 
+    st.warning("Could not load invoice data. Check logs.") 
