@@ -30,19 +30,26 @@ def build_dbt_database():
         
         # Simple execution from the root directory
         try:
-            # Initialize dbtRunner (should find configs in CWD)
+            # --- Explicitly unset potential env vars (just in case) ---
+            old_project_dir = os.environ.pop('DBT_PROJECT_DIR', None)
+            old_profiles_dir = os.environ.pop('DBT_PROFILES_DIR', None)
+            if old_project_dir or old_profiles_dir:
+                st.info("Cleared existing DBT environment variables.")
+            # --- End Unset ---
+            
+            # Initialize dbtRunner 
             dbt = dbtRunner()
             
-            # Define commands without flags 
-            seed_args = ["seed"]
-            run_args = ["run"]
+            # Define commands explicitly pointing project dir to CWD ('.')
+            seed_args = ["seed", "--project-dir", "."]
+            run_args = ["run", "--project-dir", "."]
             
-            st.info(f"Running dbt seed from {os.getcwd()}...") 
+            st.info(f"Running dbt seed from {os.getcwd()} (project dir: '.')...") 
             seed_res: dbtRunnerResult = dbt.invoke(seed_args)
             if seed_res.success:
                 st.success("dbt seed completed successfully.")
                 
-                st.info(f"Running dbt run from {os.getcwd()}...") 
+                st.info(f"Running dbt run from {os.getcwd()} (project dir: '.')...") 
                 run_res: dbtRunnerResult = dbt.invoke(run_args)
                 if run_res.success:
                     st.success("dbt run completed successfully. Database should be ready.")
@@ -61,6 +68,12 @@ def build_dbt_database():
                     
         except Exception as e:
              st.error(f"An unexpected error occurred during dbt execution: {e}")
+        finally:
+             # Restore env vars if they existed (optional, good practice)
+             if old_project_dir:
+                 os.environ['DBT_PROJECT_DIR'] = old_project_dir
+             if old_profiles_dir:
+                 os.environ['DBT_PROFILES_DIR'] = old_profiles_dir
        
     else:
         st.info(f"Found existing database: {db_abs_path}")
