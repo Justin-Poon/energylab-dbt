@@ -15,20 +15,7 @@ A live version of the dashboard is hosted on Streamlit Community Cloud:
 **[https://lackadaisicalshiba-energylab-dbt-dashboard-h6afhv.streamlit.app/](https://lackadaisicalshiba-energylab-dbt-dashboard-h6afhv.streamlit.app/)**
 
 
-## Motivation
-
-This project was developed as a practical demonstration of skills relevant to the **Kraken Analytics** role, particularly the focus on understanding and processing data related to **billing, payments, and debt** within the energy industry. While using sample data, the pipeline structure and transformations mirror the core logic required to build reliable datasets for financial analysis and reporting in a production environment.
-
-It aims to showcase proficiency in:
-
-*   Building data pipelines using **dbt**.
-*   Writing clean, efficient **SQL** for data transformation and aggregation.
-*   Applying data modeling concepts (staging, intermediate, fact layers).
-*   Working with modern data tools (**DuckDB**, **Python**).
-*   Basic data visualization and app creation (**Streamlit**).
-*   Collaborative development using **Git**.
-
-## Key Features & Demonstrated Skills
+## Key Features 
 
 *   **dbt Project Structure:** Standard dbt project layout (`models`, `seeds`, `profiles.yml`, `dbt_project.yml`).
 *   **Data Modeling:**
