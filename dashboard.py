@@ -24,21 +24,29 @@ DBT_PROJECT_DIR = 'energylab' # Specify dbt project directory relative to script
 def build_dbt_database():
     if not os.path.exists(DB_PATH):
         st.warning(f"{DB_PATH} not found. Running dbt commands via Python API to build it...")
-        # Initialize dbtRunner with the project directory context
-        dbt = dbtRunner(project_dir=DBT_PROJECT_DIR)
         
-        # Define commands without --project-dir or --profiles-dir
-        # dbt should find profiles.yml in the execution dir (root) by default
-        # and dbt_project.yml in the specified project_dir
+        # --- Set Environment Variables for dbt --- 
+        # Ensure paths are relative to the script's execution context if needed
+        # Assuming script runs from repo root where profiles.yml is
+        os.environ['DBT_PROJECT_DIR'] = DBT_PROJECT_DIR # Set to 'energylab'
+        os.environ['DBT_PROFILES_DIR'] = '.' # Set to current dir (repo root)
+        st.info(f"Set DBT_PROJECT_DIR={os.environ['DBT_PROJECT_DIR']}")
+        st.info(f"Set DBT_PROFILES_DIR={os.environ['DBT_PROFILES_DIR']}")
+        # --- End Environment Variable Setting ---
+
+        # Initialize dbtRunner *after* setting environment variables
+        dbt = dbtRunner()
+        
+        # Define commands without flags (should use env vars)
         seed_args = ["seed"]
         run_args = ["run"]
         
-        st.info(f"Running dbt seed in {DBT_PROJECT_DIR}...") # Updated log message
+        st.info(f"Running dbt seed (using env vars)...") # Updated log message
         seed_res: dbtRunnerResult = dbt.invoke(seed_args)
         if seed_res.success:
             st.success("dbt seed completed successfully.")
             
-            st.info(f"Running dbt run in {DBT_PROJECT_DIR}...") # Updated log message
+            st.info(f"Running dbt run (using env vars)...") # Updated log message
             run_res: dbtRunnerResult = dbt.invoke(run_args)
             if run_res.success:
                 st.success("dbt run completed successfully. Database should be ready.")
@@ -54,6 +62,10 @@ def build_dbt_database():
                 st.error(f"dbt seed exception: {seed_res.exception}")
             if seed_res.result:
                 st.error(f"dbt seed result: {seed_res.result}") 
+        
+        # Clean up env vars if desired (optional)
+        # del os.environ['DBT_PROJECT_DIR']
+        # del os.environ['DBT_PROFILES_DIR']
     else:
         st.info(f"Found existing database: {DB_PATH}")
 
