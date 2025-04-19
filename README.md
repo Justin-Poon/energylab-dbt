@@ -1,6 +1,6 @@
 # EnergyLab DBT Pipeline & Dashboard
 
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://lackadaisicalshiba-energylab-dbt-dashboard-h6afhv.streamlit.app/)
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://energylab-dbt-dashboard-h6afhv.streamlit.app/)
 
 ## Project Overview
 
@@ -12,7 +12,7 @@ The primary goal is to showcase foundational data engineering skills relevant to
 
 A live version of the dashboard is hosted on Streamlit Community Cloud:
 
-**[https://lackadaisicalshiba-energylab-dbt-dashboard-h6afhv.streamlit.app/](https://lackadaisicalshiba-energylab-dbt-dashboard-h6afhv.streamlit.app/)**
+**[https://energylab-dbt-dashboard-h6afhv.streamlit.app/](https://energylab-dbt-dashboard-h6afhv.streamlit.app/)**
 
 
 ## Key Features 
