@@ -100,11 +100,13 @@ def build_dbt_database():
 build_dbt_database()
 
 # Function to load monthly metrics data from DuckDB
-@st.cache_data # Cache the data to avoid reloading on every interaction
+# @st.cache_data # <-- Temporarily commented out for debugging
 def load_monthly_metrics():
     try:
         # Use absolute path for connection
-        con = duckdb.connect(os.path.abspath(DB_PATH), read_only=True)
+        db_connect_path = os.path.abspath(DB_PATH) # Get current absolute path
+        st.info(f"load_monthly_metrics attempting to connect to: {db_connect_path}") # Log path
+        con = duckdb.connect(db_connect_path, read_only=True)
         # Query for monthly metrics
         df = con.execute("SELECT * FROM main.fct_billing_metrics ORDER BY billing_month").df()
         con.close()
@@ -116,10 +118,13 @@ def load_monthly_metrics():
         return pd.DataFrame() # Return empty DataFrame on error
 
 # Function to load individual invoice data from DuckDB
-@st.cache_data
+# @st.cache_data # <-- Temporarily commented out for debugging
 def load_invoice_data():
     try:
-        con = duckdb.connect(DB_PATH, read_only=True)
+        # Use absolute path for connection
+        db_connect_path = os.path.abspath(DB_PATH) # Get current absolute path
+        st.info(f"load_invoice_data attempting to connect to: {db_connect_path}") # Log path
+        con = duckdb.connect(db_connect_path, read_only=True)
         # Query for individual invoice details
         df = con.execute("SELECT * FROM main.fct_invoices ORDER BY customer_id, invoice_id").df()
         con.close()
