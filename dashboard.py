@@ -1,10 +1,11 @@
 import streamlit as st
 import duckdb
 import pandas as pd
-import subprocess
+# import subprocess # No longer needed
 import os
-import sys # Import sys
-import shlex # Import shlex for safer command splitting
+# import sys # No longer needed
+# import shlex # No longer needed
+from dbt.cli.main import dbtRunner, dbtRunnerResult # Import dbtRunner
 
 # --- Page Config (Must be the first Streamlit command!) ---
 st.set_page_config(layout="wide")
@@ -14,72 +15,38 @@ st.set_page_config(layout="wide")
 DB_PATH = 'energylab.duckdb'
 DBT_PROJECT_DIR = 'energylab' # Specify dbt project directory relative to script
 
-# --- Function to run dbt commands ---
-def run_dbt_command(command_list):
-    command_str = " ".join(map(shlex.quote, command_list)) # For display purposes
-    st.info(f"Running: {command_str}...")
-    try:
-        # Use shell=False and pass command as list
-        result = subprocess.run(command_list, check=True, capture_output=True, text=True,
-                                cwd=os.path.dirname(__file__) 
-                                )
-        # Display stdout in an expander
-        with st.expander(f"Output for: {command_str}", expanded=False):
-             st.code(result.stdout, language=None) # Display raw output
-        if result.stderr:
-             st.text("Error output (stderr):")
-             st.code(result.stderr, language=None) # Show stderr output as well
-        st.success(f"'{command_str}' completed successfully.")
-        return True
-    except subprocess.CalledProcessError as e:
-        st.error(f"Error running command: {command_str}")
-        st.error(f"Return code: {e.returncode}")
-        # Display output/error in expanders even on failure
-        with st.expander(f"Failed Output for: {command_str}", expanded=True):
-            st.text("Standard Output:")
-            st.code(e.stdout or "(No stdout)", language=None)
-            st.text("Error Output (stderr):")
-            st.code(e.stderr or "(No stderr)", language=None)
-        return False
-    except FileNotFoundError: # Catch specific error if python/dbt module not found
-        st.error(f"Error: Command not found when trying to run '{command_str}'. Is dbt installed correctly?")
-        return False
-    except Exception as e:
-        st.error(f"An unexpected error occurred while running dbt: {e}")
-        return False
+# --- Function to run dbt commands using Python API ---
+# Removed run_dbt_command function
 
 # --- Run dbt if database doesn't exist ---
 # Cache this step to ensure it only runs once per session if DB is missing initially
 @st.cache_resource
 def build_dbt_database():
     if not os.path.exists(DB_PATH):
-        st.warning(f"{DB_PATH} not found. Running dbt commands to build it...")
-        # Use sys.executable to get path to current python interpreter
-        python_executable = sys.executable 
+        st.warning(f"{DB_PATH} not found. Running dbt commands via Python API to build it...")
+        dbt = dbtRunner()
         
-        # Construct commands as lists
-        seed_command_list = [
-            python_executable, 
-            "-m", "dbt", 
-            "seed", 
-            "--project-dir", DBT_PROJECT_DIR
-        ]
-        run_command_list = [
-            python_executable, 
-            "-m", "dbt", 
-            "run", 
-            "--project-dir", DBT_PROJECT_DIR
-        ]
+        # Define commands as lists of arguments for invoke
+        seed_args = ["seed", "--project-dir", DBT_PROJECT_DIR]
+        run_args = ["run", "--project-dir", DBT_PROJECT_DIR]
         
-        seed_success = run_dbt_command(seed_command_list)
-        if seed_success:
-            run_success = run_dbt_command(run_command_list)
-            if run_success:
-                st.success("dbt build process completed. Database should be ready.")
+        st.info(f"Running dbt seed...")
+        seed_res: dbtRunnerResult = dbt.invoke(seed_args)
+        if seed_res.success:
+            st.success("dbt seed completed successfully.")
+            # Consider showing seed output if needed (seed_res.result)
+            
+            st.info("Running dbt run...")
+            run_res: dbtRunnerResult = dbt.invoke(run_args)
+            if run_res.success:
+                st.success("dbt run completed successfully. Database should be ready.")
+                # Consider showing run output if needed (run_res.result)
             else:
                 st.error("dbt run failed. Cannot load data.")
+                # Optionally show run_res.exception or run_res.result for debugging
         else:
             st.error("dbt seed failed. Cannot load data.")
+            # Optionally show seed_res.exception or seed_res.result for debugging
     else:
         st.info(f"Found existing database: {DB_PATH}")
 
