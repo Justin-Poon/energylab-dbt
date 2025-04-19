@@ -13,7 +13,7 @@ st.set_page_config(layout="wide")
 
 # Database path (relative to project root)
 DB_PATH = 'energylab.duckdb'
-DBT_PROJECT_DIR = 'energylab' # Specify dbt project directory relative to script
+# DBT_PROJECT_DIR = 'energylab' # No longer needed
 
 # --- Function to run dbt commands using Python API ---
 # Removed run_dbt_command function
@@ -22,34 +22,27 @@ DBT_PROJECT_DIR = 'energylab' # Specify dbt project directory relative to script
 # Cache this step to ensure it only runs once per session if DB is missing initially
 @st.cache_resource
 def build_dbt_database():
-    # Get the absolute path to the database file, assuming it's in the root dir
+    # Use absolute path for check
     db_abs_path = os.path.abspath(DB_PATH)
-    # Get the absolute path to the dbt project directory
-    dbt_project_abs_path = os.path.abspath(DBT_PROJECT_DIR)
     
     if not os.path.exists(db_abs_path):
         st.warning(f"{db_abs_path} not found. Running dbt commands via Python API to build it...")
         
-        original_cwd = os.getcwd()
-        st.info(f"Original working directory: {original_cwd}")
-        
+        # Simple execution from the root directory
         try:
-            st.info(f"Changing working directory to: {dbt_project_abs_path}")
-            os.chdir(dbt_project_abs_path)
-            
-            # Initialize dbtRunner *after* changing directory
+            # Initialize dbtRunner (should find configs in CWD)
             dbt = dbtRunner()
             
-            # Define commands, adding --profiles-dir pointing to parent (original CWD)
-            seed_args = ["seed", "--profiles-dir", ".."] 
-            run_args = ["run", "--profiles-dir", ".."] 
+            # Define commands without flags 
+            seed_args = ["seed"]
+            run_args = ["run"]
             
-            st.info(f"Running dbt seed in {os.getcwd()} (profiles dir: '..')...") 
+            st.info(f"Running dbt seed from {os.getcwd()}...") 
             seed_res: dbtRunnerResult = dbt.invoke(seed_args)
             if seed_res.success:
                 st.success("dbt seed completed successfully.")
                 
-                st.info(f"Running dbt run in {os.getcwd()} (profiles dir: '..')...") 
+                st.info(f"Running dbt run from {os.getcwd()}...") 
                 run_res: dbtRunnerResult = dbt.invoke(run_args)
                 if run_res.success:
                     st.success("dbt run completed successfully. Database should be ready.")
@@ -66,18 +59,10 @@ def build_dbt_database():
                 if seed_res.result:
                     st.error(f"dbt seed result: {seed_res.result}") 
                     
-        except FileNotFoundError:
-             st.error(f"Error: Could not change directory to {dbt_project_abs_path}. Does it exist?")
         except Exception as e:
              st.error(f"An unexpected error occurred during dbt execution: {e}")
-        finally:
-             # --- CRITICAL: Change back to original directory --- 
-             st.info(f"Changing working directory back to: {original_cwd}")
-             os.chdir(original_cwd)
-             st.info(f"Current working directory: {os.getcwd()}")
-             # --- End Change Back --- 
+       
     else:
-        # Use absolute path for check and info message
         st.info(f"Found existing database: {db_abs_path}")
 
 # --- Build dbt database if necessary ---
