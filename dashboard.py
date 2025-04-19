@@ -101,7 +101,7 @@ def build_dbt_database():
     return build_success # Return status 
 
 # --- Database Connection --- 
-@st.cache_resource # Re-enable cache
+# @st.cache_resource # REMOVED cache
 def get_db_connection(build_outcome):
     # Only attempt connection if build reported success
     if not build_outcome:
