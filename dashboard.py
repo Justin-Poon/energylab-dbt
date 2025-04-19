@@ -24,44 +24,36 @@ DBT_PROJECT_DIR = 'energylab' # Specify dbt project directory relative to script
 def build_dbt_database():
     if not os.path.exists(DB_PATH):
         st.warning(f"{DB_PATH} not found. Running dbt commands via Python API to build it...")
-        dbt = dbtRunner()
+        # Initialize dbtRunner with the project directory context
+        dbt = dbtRunner(project_dir=DBT_PROJECT_DIR)
         
-        # Define commands - just need --project-dir now
-        seed_args = [
-            "seed", 
-            "--project-dir", DBT_PROJECT_DIR
-        ]
-        run_args = [
-            "run", 
-            "--project-dir", DBT_PROJECT_DIR
-        ]
+        # Define commands without --project-dir or --profiles-dir
+        # dbt should find profiles.yml in the execution dir (root) by default
+        # and dbt_project.yml in the specified project_dir
+        seed_args = ["seed"]
+        run_args = ["run"]
         
-        st.info(f"Running dbt seed...")
+        st.info(f"Running dbt seed in {DBT_PROJECT_DIR}...") # Updated log message
         seed_res: dbtRunnerResult = dbt.invoke(seed_args)
         if seed_res.success:
             st.success("dbt seed completed successfully.")
-            # Consider showing seed output if needed (seed_res.result)
             
-            st.info("Running dbt run...")
+            st.info(f"Running dbt run in {DBT_PROJECT_DIR}...") # Updated log message
             run_res: dbtRunnerResult = dbt.invoke(run_args)
             if run_res.success:
                 st.success("dbt run completed successfully. Database should be ready.")
-                # Consider showing run output if needed (run_res.result)
             else:
                 st.error("dbt run failed. Cannot load data.")
-                # Print specific error details for dbt run failure
                 if run_res.exception:
                     st.error(f"dbt run exception: {run_res.exception}")
                 if run_res.result:
                     st.error(f"dbt run result: {run_res.result}")
         else:
             st.error("dbt seed failed. Cannot load data.")
-            # Print specific error details for dbt seed failure
             if seed_res.exception:
                 st.error(f"dbt seed exception: {seed_res.exception}")
             if seed_res.result:
-                # This might contain logs or structured results depending on the command
-                st.error(f"dbt seed result: {seed_res.result}")
+                st.error(f"dbt seed result: {seed_res.result}") 
     else:
         st.info(f"Found existing database: {DB_PATH}")
 
