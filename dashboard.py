@@ -1,44 +1,37 @@
 import streamlit as st
 import duckdb
 import pandas as pd
-# import subprocess # No longer needed
 import os
-import gc # Import garbage collector
-# import sys # No longer needed
-# import shlex # No longer needed
-# from dbt.cli.main import dbtRunner, dbtRunnerResult # No longer needed dbt imports
-# import time # No longer needed
+
 
 # --- Page Config (Must be the first Streamlit command!) ---
 st.set_page_config(layout="wide")
 # ---------------------------------------------------------
 
 # Database path (relative to project root)
-DB_PATH = 'energylab.duckdb' # Relative path in repo root
+# Use os.path.abspath to ensure consistent path handling
+DB_PATH = os.path.abspath('energylab.duckdb') 
 # DB_WAL_PATH = DB_PATH + ".wal" # No longer needed for read-only
 
 # --- Removed Clean Slate Logic ---
 # --- Removed dbt Build Logic ---
 
 # --- Database Connection --- 
-# @st.cache_resource # REMOVED cache again for testing
-def get_db_connection(): # Removed build_outcome parameter
-    db_connect_path = os.path.abspath(DB_PATH)
-    st.info(f"Attempting to establish DB connection to: {db_connect_path}")
-    if not os.path.exists(db_connect_path):
-        st.error(f"Database file not found at {db_connect_path}. Please ensure 'energylab.duckdb' is in the repository and you've run 'dbt build' locally." ) 
-        return None
+@st.cache_resource(show_spinner=False) # Re-enabled cache, added show_spinner=False
+def get_db_connection(): 
+    st.info(f"Attempting to establish DB connection to: {DB_PATH}") # Keep info for now
+    if not os.path.exists(DB_PATH):
+        st.error(f"Database file not found at {DB_PATH}. Please ensure 'energylab.duckdb' is in the repository.") 
+        st.stop() # Stop execution if DB not found
     try:
-        # Force garbage collection before connecting
-        st.info("Running garbage collection before connection attempt...")
-        gc.collect()
         # Connect read-only to pre-built database
-        connection = duckdb.connect(db_connect_path, read_only=True)
+        connection = duckdb.connect(DB_PATH, read_only=True)
         st.success("Database connection established.")
         return connection
     except Exception as e:
-         st.error(f"Failed to connect to database at {db_connect_path}: {e}")
-         return None
+         # Simplified error handling for connection failure
+         st.error(f"Failed to connect to database at {DB_PATH}: {e}")
+         st.stop() # Stop execution on connection error
 
 # Function to load monthly metrics data from DuckDB
 # @st.cache_data # <-- Temporarily commented out for debugging
