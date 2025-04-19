@@ -1,0 +1,10 @@
+energylab:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: ../energylab.duckdb # Path relative to this profiles.yml file
+      # Optional: Add extensions or other DuckDB settings here
+      # extensions:
+      #   - httpfs
+      #   - parquet 

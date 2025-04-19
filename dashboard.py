@@ -27,8 +27,17 @@ def build_dbt_database():
         dbt = dbtRunner()
         
         # Define commands as lists of arguments for invoke
-        seed_args = ["seed", "--project-dir", DBT_PROJECT_DIR]
-        run_args = ["run", "--project-dir", DBT_PROJECT_DIR]
+        # Explicitly point to the profiles dir within the project
+        seed_args = [
+            "seed", 
+            "--project-dir", DBT_PROJECT_DIR, 
+            "--profiles-dir", DBT_PROJECT_DIR # Tell dbt where profiles.yml is
+        ]
+        run_args = [
+            "run", 
+            "--project-dir", DBT_PROJECT_DIR, 
+            "--profiles-dir", DBT_PROJECT_DIR # Tell dbt where profiles.yml is
+        ]
         
         st.info(f"Running dbt seed...")
         seed_res: dbtRunnerResult = dbt.invoke(seed_args)
