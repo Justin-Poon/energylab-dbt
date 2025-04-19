@@ -40,16 +40,16 @@ def build_dbt_database():
             # Initialize dbtRunner *after* changing directory
             dbt = dbtRunner()
             
-            # Define commands without flags (should use CWD)
-            seed_args = ["seed"]
-            run_args = ["run"]
+            # Define commands, adding --profiles-dir pointing to parent (original CWD)
+            seed_args = ["seed", "--profiles-dir", ".."] 
+            run_args = ["run", "--profiles-dir", ".."] 
             
-            st.info(f"Running dbt seed in {os.getcwd()}...") 
+            st.info(f"Running dbt seed in {os.getcwd()} (profiles dir: '..')...") 
             seed_res: dbtRunnerResult = dbt.invoke(seed_args)
             if seed_res.success:
                 st.success("dbt seed completed successfully.")
                 
-                st.info(f"Running dbt run in {os.getcwd()}...") 
+                st.info(f"Running dbt run in {os.getcwd()} (profiles dir: '..')...") 
                 run_res: dbtRunnerResult = dbt.invoke(run_args)
                 if run_res.success:
                     st.success("dbt run completed successfully. Database should be ready.")
