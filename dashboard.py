@@ -6,6 +6,7 @@ import os
 # import sys # No longer needed
 # import shlex # No longer needed
 from dbt.cli.main import dbtRunner, dbtRunnerResult # Import dbtRunner
+import time # Import time for potential sleep
 
 # --- Page Config (Must be the first Streamlit command!) ---
 st.set_page_config(layout="wide")
@@ -14,96 +15,102 @@ st.set_page_config(layout="wide")
 # Database path (relative to project root)
 # DB_PATH = 'energylab.duckdb' # Old path
 DB_PATH = '/tmp/energylab.duckdb' # Use the same absolute path as profiles.yml
+DB_WAL_PATH = DB_PATH + ".wal" # WAL file path
 # DBT_PROJECT_DIR = 'energylab' # No longer needed
 
+# --- Force Clean Slate on Start ---
+st.info(f"Checking for and deleting existing DB files: {DB_PATH}*")
+try:
+    if os.path.exists(DB_PATH):
+        os.remove(DB_PATH)
+        st.info(f"Deleted {DB_PATH}") # Use info level for routine deletion
+    if os.path.exists(DB_WAL_PATH):
+        os.remove(DB_WAL_PATH)
+        st.info(f"Deleted {DB_WAL_PATH}")
+except OSError as e:
+    st.error(f"Error deleting existing database files: {e}. App may fail.")
+# --- End Clean Slate ---
+
 # --- dbt Build Logic --- 
-@st.cache_resource # Cache resource so build only runs once per session if needed
+@st.cache_resource # Build should only run once per session now
 def build_dbt_database():
     db_abs_path = os.path.abspath(DB_PATH)
-    st.info(f"Checking for database at: {db_abs_path}")
-    
-    db_exists_initially = os.path.exists(db_abs_path)
-    
-    if not db_exists_initially:
-        st.warning(f"Database not found. Running dbt commands via Python API to build it...")
-        build_success = False
-        try:
-            # Store/clear env vars
-            old_project_dir = os.environ.pop('DBT_PROJECT_DIR', None)
-            old_profiles_dir = os.environ.pop('DBT_PROFILES_DIR', None)
-            if old_project_dir or old_profiles_dir:
-                st.info("Cleared existing DBT environment variables.")
+    st.warning(f"Running dbt commands to build database at {db_abs_path}...") # Removed initial check msg
+    build_success = False
+    try:
+        # Store/clear env vars
+        old_project_dir = os.environ.pop('DBT_PROJECT_DIR', None)
+        old_profiles_dir = os.environ.pop('DBT_PROFILES_DIR', None)
+        if old_project_dir or old_profiles_dir:
+            st.info("Cleared existing DBT environment variables.")
 
-            dbt = dbtRunner()
-            deps_args = ["deps", "--project-dir", "."]
-            seed_args = ["seed", "--project-dir", "."]
-            run_args = ["run", "--project-dir", "."]
+        dbt = dbtRunner()
+        deps_args = ["deps", "--project-dir", "."]
+        seed_args = ["seed", "--project-dir", "."]
+        run_args = ["run", "--project-dir", "."]
 
-            st.info(f"Running dbt deps...") 
-            deps_res: dbtRunnerResult = dbt.invoke(deps_args)
-            if not deps_res.success:
-                 st.error("dbt deps failed.")
-                 if deps_res.exception:
-                     st.error(f"dbt deps exception: {deps_res.exception}")
-                 if deps_res.result:
-                     st.error(f"dbt deps result: {deps_res.result}")
-            else:
-                st.success("dbt deps completed.")
-                st.info(f"Running dbt seed...") 
-                seed_res: dbtRunnerResult = dbt.invoke(seed_args)
-                if not seed_res.success:
-                    st.error("dbt seed failed.")
-                    if seed_res.exception:
-                        st.error(f"dbt seed exception: {seed_res.exception}")
-                    if seed_res.result:
-                        st.error(f"dbt seed result: {seed_res.result}")
-                else:
-                    st.success("dbt seed completed.")
-                    st.info(f"Running dbt run...") 
-                    run_res: dbtRunnerResult = dbt.invoke(run_args)
-                    if not run_res.success:
-                        st.error("dbt run failed.")
-                        if run_res.exception:
-                            st.error(f"dbt run exception: {run_res.exception}")
-                        if run_res.result:
-                            st.error(f"dbt run result: {run_res.result}")
-                    else:
-                        st.success("dbt run completed.")
-                        build_success = True # Mark build as successful
-        except Exception as e:
-             st.error(f"An unexpected error occurred during dbt execution: {e}")
-        finally:
-             # Restore env vars 
-             if old_project_dir:
-                 os.environ['DBT_PROJECT_DIR'] = old_project_dir
-             if old_profiles_dir:
-                 os.environ['DBT_PROFILES_DIR'] = old_profiles_dir
-        
-        if build_success:
-             st.info("dbt build process finished. Triggering app rerun.")
-             # Check existence after build attempt
-             if os.path.exists(db_abs_path):
-                  st.rerun() # Force Streamlit to rerun the script
-             else:
-                  st.error("Database file still does not exist after dbt reported success. Cannot rerun.")
+        st.info(f"Running dbt deps...") 
+        deps_res: dbtRunnerResult = dbt.invoke(deps_args)
+        if not deps_res.success:
+            st.error("dbt deps failed.")
+            if deps_res.exception: st.error(f"dbt deps exception: {deps_res.exception}")
+            if deps_res.result: st.error(f"dbt deps result: {deps_res.result}")
         else:
-             st.error("Database build failed. Cannot proceed.")
-             # Potentially stop the app or return early if build is critical
-             # st.stop()
+            st.success("dbt deps completed.")
+            st.info(f"Running dbt seed...") 
+            seed_res: dbtRunnerResult = dbt.invoke(seed_args)
+            if not seed_res.success:
+                st.error("dbt seed failed.")
+                if seed_res.exception: st.error(f"dbt seed exception: {seed_res.exception}")
+                if seed_res.result: st.error(f"dbt seed result: {seed_res.result}") 
+            else:
+                st.success("dbt seed completed.")
+                st.info(f"Running dbt run...") 
+                run_res: dbtRunnerResult = dbt.invoke(run_args)
+                if not run_res.success:
+                    st.error("dbt run failed.")
+                    if run_res.exception: st.error(f"dbt run exception: {run_res.exception}")
+                    if run_res.result: st.error(f"dbt run result: {run_res.result}")
+                else:
+                    st.success("dbt run completed.")
+                    build_success = True
+                    # Optional: Add a small delay 
+                    # time.sleep(1) 
+    except Exception as e:
+            st.error(f"An unexpected error occurred during dbt execution: {e}")
+    finally:
+            # Restore env vars 
+            if old_project_dir:
+                os.environ['DBT_PROJECT_DIR'] = old_project_dir
+            if old_profiles_dir:
+                os.environ['DBT_PROFILES_DIR'] = old_profiles_dir
+    
+    if build_success:
+            st.info("dbt build process finished.")
+            if not os.path.exists(db_abs_path):
+                st.error("Database file still does not exist after dbt reported success.")
+                build_success = False # Mark as failed if file missing
     else:
-        st.info(f"Found existing database: {db_abs_path}")
-    # This function no longer returns a connection
+            st.error("Database build failed during execution.")
+            
+    return build_success # Return status 
 
 # --- Database Connection --- 
 @st.cache_resource # Cache the connection separately
-def get_db_connection():
+def get_db_connection(build_outcome):
+    # Only attempt connection if build reported success
+    if not build_outcome:
+        st.warning("Skipping DB connection attempt because build failed.")
+        return None 
+        
     db_connect_path = os.path.abspath(DB_PATH)
     st.info(f"Attempting to establish DB connection to: {db_connect_path}")
-    # Check if the file exists *before* trying to connect
     if not os.path.exists(db_connect_path):
-        st.error(f"Database file not found at {db_connect_path} when trying to connect.")
+        st.error(f"Database file not found at {db_connect_path} when trying to connect (unexpected)." ) 
         return None
     try:
+        # Add short delay before connecting read-only
+        time.sleep(0.5) 
         connection = duckdb.connect(db_connect_path, read_only=True)
         st.success("Database connection established.")
         return connection
@@ -139,11 +146,11 @@ def load_invoice_data(con):
         return pd.DataFrame()
 
 # --- Main App Logic --- 
-# Ensure DB is built if necessary (runs only if DB doesn't exist)
-build_dbt_database()
+# Force build DB on first run of session
+build_status = build_dbt_database()
 
-# THEN, get the shared database connection
-con = get_db_connection()
+# Get the shared database connection (depends on build status)
+con = get_db_connection(build_status)
 
 # Load the data using the connection
 df_metrics = load_monthly_metrics(con)
