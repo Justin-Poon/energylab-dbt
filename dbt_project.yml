@@ -11,12 +11,12 @@ profile: 'energylab' # This should match the profile name in your profiles.yml
 # These configurations specify where dbt should look for different types of files.
 # The `model-paths` config, for example, states that models in this project can be
 # found in the "models/" directory. You probably won't need to change these!
-model-paths: ["energylab/models"]
-analysis-paths: ["energylab/analyses"]
-test-paths: ["energylab/tests"]
-seed-paths: ["energylab/seeds"]
-macro-paths: ["energylab/macros"]
-snapshot-paths: ["energylab/snapshots"]
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
 
 seeds:
   energylab: # This should match your project name
