@@ -50,9 +50,10 @@ def run_dbt_command(command):
 def build_dbt_database():
     if not os.path.exists(DB_PATH):
         st.warning(f"{DB_PATH} not found. Running dbt commands to build it...")
-        # Use --project-dir to tell dbt where the project root is
-        seed_command = f"dbt seed --project-dir {DBT_PROJECT_DIR}"
-        run_command = f"dbt run --project-dir {DBT_PROJECT_DIR}"
+        # Use python -m dbt for more reliable execution in containers
+        # Ensure --project-dir points correctly relative to dashboard.py location
+        seed_command = f"python -m dbt seed --project-dir {DBT_PROJECT_DIR}"
+        run_command = f"python -m dbt run --project-dir {DBT_PROJECT_DIR}"
         
         seed_success = run_dbt_command(seed_command)
         if seed_success:
