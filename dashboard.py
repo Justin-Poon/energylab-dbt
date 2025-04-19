@@ -22,52 +22,63 @@ DBT_PROJECT_DIR = 'energylab' # Specify dbt project directory relative to script
 # Cache this step to ensure it only runs once per session if DB is missing initially
 @st.cache_resource
 def build_dbt_database():
-    if not os.path.exists(DB_PATH):
-        st.warning(f"{DB_PATH} not found. Running dbt commands via Python API to build it...")
+    # Get the absolute path to the database file, assuming it's in the root dir
+    db_abs_path = os.path.abspath(DB_PATH)
+    # Get the absolute path to the dbt project directory
+    dbt_project_abs_path = os.path.abspath(DBT_PROJECT_DIR)
+    
+    if not os.path.exists(db_abs_path):
+        st.warning(f"{db_abs_path} not found. Running dbt commands via Python API to build it...")
         
-        # --- Set Environment Variables for dbt --- 
-        # Ensure paths are relative to the script's execution context if needed
-        # Assuming script runs from repo root where profiles.yml is
-        os.environ['DBT_PROJECT_DIR'] = DBT_PROJECT_DIR # Set to 'energylab'
-        os.environ['DBT_PROFILES_DIR'] = '.' # Set to current dir (repo root)
-        st.info(f"Set DBT_PROJECT_DIR={os.environ['DBT_PROJECT_DIR']}")
-        st.info(f"Set DBT_PROFILES_DIR={os.environ['DBT_PROFILES_DIR']}")
-        # --- End Environment Variable Setting ---
-
-        # Initialize dbtRunner *after* setting environment variables
-        dbt = dbtRunner()
+        original_cwd = os.getcwd()
+        st.info(f"Original working directory: {original_cwd}")
         
-        # Define commands without flags (should use env vars)
-        seed_args = ["seed"]
-        run_args = ["run"]
-        
-        st.info(f"Running dbt seed (using env vars)...") # Updated log message
-        seed_res: dbtRunnerResult = dbt.invoke(seed_args)
-        if seed_res.success:
-            st.success("dbt seed completed successfully.")
+        try:
+            st.info(f"Changing working directory to: {dbt_project_abs_path}")
+            os.chdir(dbt_project_abs_path)
             
-            st.info(f"Running dbt run (using env vars)...") # Updated log message
-            run_res: dbtRunnerResult = dbt.invoke(run_args)
-            if run_res.success:
-                st.success("dbt run completed successfully. Database should be ready.")
+            # Initialize dbtRunner *after* changing directory
+            dbt = dbtRunner()
+            
+            # Define commands without flags (should use CWD)
+            seed_args = ["seed"]
+            run_args = ["run"]
+            
+            st.info(f"Running dbt seed in {os.getcwd()}...") 
+            seed_res: dbtRunnerResult = dbt.invoke(seed_args)
+            if seed_res.success:
+                st.success("dbt seed completed successfully.")
+                
+                st.info(f"Running dbt run in {os.getcwd()}...") 
+                run_res: dbtRunnerResult = dbt.invoke(run_args)
+                if run_res.success:
+                    st.success("dbt run completed successfully. Database should be ready.")
+                else:
+                    st.error("dbt run failed. Cannot load data.")
+                    if run_res.exception:
+                        st.error(f"dbt run exception: {run_res.exception}")
+                    if run_res.result:
+                        st.error(f"dbt run result: {run_res.result}")
             else:
-                st.error("dbt run failed. Cannot load data.")
-                if run_res.exception:
-                    st.error(f"dbt run exception: {run_res.exception}")
-                if run_res.result:
-                    st.error(f"dbt run result: {run_res.result}")
-        else:
-            st.error("dbt seed failed. Cannot load data.")
-            if seed_res.exception:
-                st.error(f"dbt seed exception: {seed_res.exception}")
-            if seed_res.result:
-                st.error(f"dbt seed result: {seed_res.result}") 
-        
-        # Clean up env vars if desired (optional)
-        # del os.environ['DBT_PROJECT_DIR']
-        # del os.environ['DBT_PROFILES_DIR']
+                st.error("dbt seed failed. Cannot load data.")
+                if seed_res.exception:
+                    st.error(f"dbt seed exception: {seed_res.exception}")
+                if seed_res.result:
+                    st.error(f"dbt seed result: {seed_res.result}") 
+                    
+        except FileNotFoundError:
+             st.error(f"Error: Could not change directory to {dbt_project_abs_path}. Does it exist?")
+        except Exception as e:
+             st.error(f"An unexpected error occurred during dbt execution: {e}")
+        finally:
+             # --- CRITICAL: Change back to original directory --- 
+             st.info(f"Changing working directory back to: {original_cwd}")
+             os.chdir(original_cwd)
+             st.info(f"Current working directory: {os.getcwd()}")
+             # --- End Change Back --- 
     else:
-        st.info(f"Found existing database: {DB_PATH}")
+        # Use absolute path for check and info message
+        st.info(f"Found existing database: {db_abs_path}")
 
 # --- Build dbt database if necessary ---
 build_dbt_database()
@@ -76,7 +87,8 @@ build_dbt_database()
 @st.cache_data # Cache the data to avoid reloading on every interaction
 def load_monthly_metrics():
     try:
-        con = duckdb.connect(DB_PATH, read_only=True)
+        # Use absolute path for connection
+        con = duckdb.connect(os.path.abspath(DB_PATH), read_only=True)
         # Query for monthly metrics
         df = con.execute("SELECT * FROM main.fct_billing_metrics ORDER BY billing_month").df()
         con.close()
