@@ -12,7 +12,8 @@ st.set_page_config(layout="wide")
 # ---------------------------------------------------------
 
 # Database path (relative to project root)
-DB_PATH = 'energylab.duckdb'
+# DB_PATH = 'energylab.duckdb' # Old path
+DB_PATH = '/tmp/energylab.duckdb' # Use the same absolute path as profiles.yml
 # DBT_PROJECT_DIR = 'energylab' # No longer needed
 
 # --- Function to run dbt commands using Python API ---

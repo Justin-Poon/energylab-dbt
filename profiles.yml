@@ -3,7 +3,7 @@ energylab:
   outputs:
     dev:
       type: duckdb
-      path: ../energylab.duckdb # Path relative to profile file (..) from CWD (energylab/)
+      path: /tmp/energylab.duckdb # Try an absolute path in /tmp
       # Optional: Add extensions or other DuckDB settings here
       # extensions:
       #   - httpfs
