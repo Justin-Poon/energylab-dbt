@@ -19,14 +19,14 @@ DB_PATH = os.path.abspath('energylab.duckdb')
 # --- Database Connection --- 
 @st.cache_resource(show_spinner=False) # Re-enabled cache, added show_spinner=False
 def get_db_connection(): 
-    st.info(f"Attempting to establish DB connection to: {DB_PATH}") # Keep info for now
+    # st.info(f"Attempting to establish DB connection to: {DB_PATH}") # Removed info
     if not os.path.exists(DB_PATH):
         st.error(f"Database file not found at {DB_PATH}. Please ensure 'energylab.duckdb' is in the repository.") 
         st.stop() # Stop execution if DB not found
     try:
         # Connect read-only to pre-built database
         connection = duckdb.connect(DB_PATH, read_only=True)
-        st.success("Database connection established.")
+        # st.success("Database connection established.") # Removed success
         return connection
     except Exception as e:
          # Simplified error handling for connection failure
